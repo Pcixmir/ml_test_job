@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  flower-search-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - USE_GPU=false
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Опционально: монтирование дополнительных данных
+      - ./flowers-recognition:/app/flowers-recognition:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flower-api.rule=Host(`localhost`)"
+      - "traefik.http.services.flower-api.loadbalancer.server.port=8000"
+
+  # Опционально: Nginx для статических файлов
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./flowers-recognition:/usr/share/nginx/html/images:ro
+    depends_on:
+      - flower-search-api
+    restart: unless-stopped 
